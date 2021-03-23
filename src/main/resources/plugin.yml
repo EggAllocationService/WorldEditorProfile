@@ -1,0 +1,3 @@
+name: WorldEditorPlugin
+main: io.gitlab.kyleafmine.worldeditor.WorldEditorProfile
+version: 1.0.0
