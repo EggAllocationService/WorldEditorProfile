@@ -90,7 +90,6 @@ public class WorldListMenu implements Listener {
         }
 
         hm.setLoreComponents(lore);
-
         h.setItemMeta(hm);
         return h;
     }
