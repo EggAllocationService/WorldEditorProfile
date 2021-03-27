@@ -14,12 +14,14 @@ repositories {
     maven {
         url 'https://repo.minebench.de/'
     }
+    maven { url 'https://raw.githubusercontent.com/JorelAli/CommandAPI/mvn-repo/'}
 }
 
 dependencies {
-    compile fileTree(include: ['slime*.jar'], dir: 'lib')
+    compile fileTree(include: ['*.jar'], dir: 'lib')
     compile 'com.destroystokyo.paper:paper-api:1.16.5-R0.1-SNAPSHOT'
     shadow 'de.themoep:minedown:1.7.0-SNAPSHOT'
+
 }
 
 test {
@@ -28,5 +30,4 @@ test {
 
 shadowJar {
     configurations = [project.configurations.shadow];
-
 }

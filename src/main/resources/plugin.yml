@@ -1,3 +1,10 @@
 name: WorldEditorPlugin
 main: io.gitlab.kyleafmine.worldeditor.WorldEditorProfile
-version: 1.0.0
+version: 1.0.2
+api-version: "1.16"
+depend:
+  - SlimeWorldManager
+commands:
+  worlds:
+    description: Worlds Menu
+    usage: /worlds

@@ -12,15 +12,18 @@ import com.grinderwolf.swm.api.world.properties.SlimeProperties;
 import com.grinderwolf.swm.api.world.properties.SlimePropertyMap;
 import de.themoep.minedown.MineDown;
 import io.gitlab.kyleafmine.worldeditor.ReadOnlyWorldListener;
+import io.gitlab.kyleafmine.worldeditor.WorldEditorProfile;
 import net.md_5.bungee.api.chat.BaseComponent;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
@@ -39,14 +42,17 @@ public class WorldListMenu implements Listener {
     public HashMap<Integer, String> currentPageMap = new HashMap<>();
     int requiredPages;
     int currentPage = 0;
-    List<List<String>> pages;
+    List<String> toRender;
     public WorldListMenu(Player ps) {
         p = ps;
         i = Bukkit.createInventory(null, 54, "Worlds");
         sp = (SlimePlugin) Bukkit.getPluginManager().getPlugin("SlimeWorldManager");
         assert sp != null;
         sl = sp.getLoader("mongodb");
+        Bukkit.getPluginManager().registerEvents(this, WorldEditorProfile.instance);
         init();
+        p.openInventory(i);
+        render();
     }
     public void init() {
         List<String> worlds;
@@ -56,42 +62,55 @@ public class WorldListMenu implements Listener {
             e.printStackTrace();
             return;
         }
-        requiredPages = (int) Math.ceil(worlds.size() / 45);
-        pages = Lists.partition(worlds, 45);
-        assert pages.size() == requiredPages;
+        //requiredPages = (int) Math.ceil(worlds.size() / 45);
+        toRender = worlds;
+
 
     }
     public void render() {
         i.clear();
         currentPageMap.clear();
-        List<String> toRender = pages.get(currentPage);
         int index = 0;
         for (String s : toRender) {
             currentPageMap.put(index, s);
             i.setItem(index, iconHelper(s, Bukkit.getWorld(s) != null));
+            index++;
         }
     }
 
     public ItemStack iconHelper(String s, Boolean b) {
 
 
-        ItemStack h = new ItemStack(Material.GRASS_BLOCK, 1);
+        ItemStack h = new ItemStack(b ? Material.GRASS_BLOCK : Material.DIRT, 1);
         ItemMeta hm = h.getItemMeta();
-        hm.setDisplayNameComponent(MineDown.parse("&#6bc900&" + s));
+        hm.setDisplayNameComponent(MineDown.parse("&r&#6bc900&" + s));
         ArrayList<BaseComponent[]> lore = new ArrayList<>();
         if (b) {
-            lore.add(MineDown.parse("&#919191&World is currently loaded."));
-            lore.add(MineDown.parse("&#ff3721&Q to unload world"));
-            h.addItemFlags(ItemFlag.HIDE_ENCHANTS);
-            h.addEnchantment(Enchantment.ARROW_INFINITE, 1);
+            if (ReadOnlyWorldListener.readOnlyWorlds.contains(s)) {
+
+                lore.add(MineDown.parse("&r&#919191&World is currently loaded. &7(Read Only)"));
+            } else {
+                lore.add(MineDown.parse("&r&#919191&World is currently loaded."));
+            }
+            lore.add(MineDown.parse("&r&#ff3721&Q to unload world"));
+            lore.add(MineDown.parse("&r&#7ce35d&Shift-Left-Click to teleport to world spawn"));
+           // h.addItemFlags(ItemFlag.HIDE_ENCHANTS);
+            //h.addUnsafeEnchantment(Enchantment.ARROW_INFINITE, 1);
         } else {
-            lore.add(MineDown.parse("&#7ce35d&Left-Click to edit world"));
-            lore.add(MineDown.parse("&#dfe312&Right-Click to view world"));
+            lore.add(MineDown.parse("&r&#7ce35d&Left-Click to edit world"));
+            lore.add(MineDown.parse("&r&#dfe312&Right-Click to view world"));
         }
 
         hm.setLoreComponents(lore);
         h.setItemMeta(hm);
         return h;
+    }
+
+    @EventHandler
+    public void close(InventoryCloseEvent e) {
+        if (e.getInventory() == this.i) {
+            HandlerList.unregisterAll(this);
+        }
     }
 
     public void loadWorld(String s, Player p, Boolean lock) {
@@ -102,7 +121,7 @@ public class WorldListMenu implements Listener {
             slp.setInt(SlimeProperties.SPAWN_Z, 0);
             slp.setBoolean(SlimeProperties.ALLOW_ANIMALS, false);
             slp.setBoolean(SlimeProperties.ALLOW_MONSTERS, false);
-            SlimeWorld sw = sp.loadWorld(sl, s, lock, slp);
+            SlimeWorld sw = sp.loadWorld(sl, s, !lock, slp);
             sp.generateWorld(sw);
             p.closeInventory();
             p.teleport(Bukkit.getWorld(s).getSpawnLocation());
@@ -133,6 +152,8 @@ public class WorldListMenu implements Listener {
     public void click(InventoryClickEvent e) {
         if (e.getClickedInventory() == i) {
             e.setCancelled(true);
+        } else {
+            return;
         }
         if (e.getClick() == ClickType.LEFT) {
             //left click on shit
@@ -173,13 +194,19 @@ public class WorldListMenu implements Listener {
                         c.teleport(Bukkit.getServer().getWorlds().get(0).getSpawnLocation());
                     }
                 }
-                if (ReadOnlyWorldListener.readOnlyWorlds.contains(clicked)) {
-                    Bukkit.unloadWorld(clicked, false);
-                    ReadOnlyWorldListener.readOnlyWorlds.remove(clicked);
+                if (!ReadOnlyWorldListener.readOnlyWorlds.contains(clicked)) {
+                    Bukkit.getWorld(clicked).save();
                 } else {
-                    Bukkit.unloadWorld(clicked, true);
+                    ReadOnlyWorldListener.readOnlyWorlds.remove(clicked);
                 }
+                Bukkit.unloadWorld(Bukkit.getWorld(clicked), false);
 
+            }
+        } else if (e.getClick() == ClickType.SHIFT_LEFT) {
+            // shift-left; teleport to world spawn
+            String clicked = currentPageMap.get(e.getSlot());
+            if (Bukkit.getWorld(clicked) != null) {
+                p.teleport(Bukkit.getWorld(clicked).getSpawnLocation());
             }
         }
     }

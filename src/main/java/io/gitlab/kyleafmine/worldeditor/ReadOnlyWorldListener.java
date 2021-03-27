@@ -31,7 +31,7 @@ public class ReadOnlyWorldListener implements Listener {
         }
     }
     @EventHandler
-    public void bucket(PlayerBucketEvent e) {
+    public void bucket(PlayerBucketEmptyEvent e) {
         if (readOnlyWorlds.contains(e.getPlayer().getWorld().getName())) {
             e.setCancelled(true);
         }
